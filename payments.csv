@@ -1,0 +1,8 @@
+date,department,invoice_number,supplier,amount,currency,status
+2026-06-01,Sales,INV-001,Company A,12000,UAH,paid
+2026-06-02,Logistics,INV-002,Company B,8500,UAH,pending
+2026-06-03,Marketing,INV-003,Company C,-1500,UAH,paid
+2026-06-04,Sales,INV-004,Company A,12000,UAH,paid
+2026-06-05,Finance,,Company D,3000,UAH,pending
+2026-06-06,Warehouse,INV-006,Company E,0,UAH,paid
+2026-06-06,IT,INV-005,Company E,0,UAH,paid
