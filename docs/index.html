@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Codex CLI — Практична частина</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green-dark:   #065f46;
+    --green-mid:    #059669;
+    --green-light:  #d1fae5;
+    --green-accent: #10b981;
+    --grey-bg:      #f0fdf8;
+    --grey-line:    #d1fae5;
+    --text-dark:    #1e293b;
+    --text-mid:     #475569;
+    --white:        #ffffff;
+    --blue:         #2563eb;
+    --orange:       #d97706;
+  }
+
+  html {
+    scroll-snap-type: y mandatory;
+    overflow-y: scroll;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--grey-bg);
+    color: var(--text-dark);
+  }
+
+  /* ── NAV DOTS ── */
+  #nav-dots {
+    position: fixed;
+    right: 22px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 100;
+  }
+  .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #a7f3d0;
+    border: 2px solid var(--white);
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    cursor: pointer;
+    transition: background .25s, transform .25s;
+  }
+  .dot.active { background: var(--green-mid); transform: scale(1.4); }
+
+  /* ── SLIDES ── */
+  .slide {
+    min-height: 100vh;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+
+  /* ── HEADER ── */
+  .slide-header {
+    background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 100%);
+    color: var(--white);
+    padding: 28px 60px 24px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .slide-header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: .3px;
+    line-height: 1.2;
+    max-width: 80%;
+  }
+  .slide-num {
+    font-size: .85rem;
+    font-weight: 600;
+    color: rgba(255,255,255,.65);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding-bottom: 3px;
+  }
+
+  /* ── BODY ── */
+  .slide-body {
+    flex: 1;
+    background: var(--white);
+    padding: 36px 60px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  /* ── COLUMNS ── */
+  .cols { display: grid; gap: 22px; }
+  .cols-2 { grid-template-columns: 1fr 1fr; }
+  .cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--grey-bg);
+    border: 1px solid var(--grey-line);
+    border-radius: 10px;
+    padding: 20px 24px;
+  }
+  .card h3 {
+    font-size: .9rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    color: var(--green-dark);
+    margin-bottom: 14px;
+    border-bottom: 2px solid var(--green-light);
+    padding-bottom: 8px;
+  }
+
+  /* ── LISTS ── */
+  ul { list-style: none; display: flex; flex-direction: column; gap: 9px; }
+  ul li {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: .95rem; color: var(--text-dark); line-height: 1.5;
+  }
+  ul li::before {
+    content: '';
+    flex-shrink: 0;
+    width: 7px; height: 7px;
+    background: var(--green-accent);
+    border-radius: 50%;
+    margin-top: 7px;
+  }
+
+  ol { list-style: none; counter-reset: li; display: flex; flex-direction: column; gap: 10px; }
+  ol li {
+    counter-increment: li;
+    display: flex; align-items: flex-start; gap: 12px;
+    font-size: .95rem; color: var(--text-dark); line-height: 1.5;
+  }
+  ol li::before {
+    content: counter(li);
+    flex-shrink: 0;
+    width: 26px; height: 26px;
+    background: var(--green-mid);
+    color: var(--white);
+    border-radius: 50%;
+    font-size: .8rem;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── CODE BLOCK ── */
+  .code-wrap { position: relative; }
+  .code-label {
+    display: inline-block;
+    background: var(--green-dark);
+    color: rgba(255,255,255,.7);
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 6px 6px 0 0;
+  }
+  pre {
+    background: #0f2419;
+    color: #a7f3d0;
+    border-radius: 0 8px 8px 8px;
+    padding: 16px 20px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: .88rem;
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: pre-wrap;
+  }
+  pre .cmd   { color: #6ee7b7; font-weight: 700; }
+  pre .flag  { color: #fbbf24; }
+  pre .str   { color: #34d399; }
+  pre .cmt   { color: #64748b; font-style: italic; }
+  pre .prompt{ color: #94a3b8; }
+  code { font-family: inherit; }
+
+  /* ── COPY BUTTON ── */
+  .copy-btn {
+    position: absolute;
+    top: 28px; right: 10px;
+    background: rgba(255,255,255,.1);
+    border: 1px solid rgba(255,255,255,.2);
+    color: rgba(255,255,255,.7);
+    font-size: .72rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all .2s;
+    letter-spacing: .5px;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,.2); color: #fff; }
+  .copy-btn.copied { background: #059669; border-color: #059669; color: #fff; }
+
+  /* ── HIGHLIGHT BOX ── */
+  .highlight-box {
+    background: var(--green-light);
+    border-left: 4px solid var(--green-mid);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    font-size: .95rem;
+    color: var(--green-dark);
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  /* ── NOTE FOOTER ── */
+  .note-footer {
+    margin-top: auto;
+    border-top: 1px solid var(--grey-line);
+    padding-top: 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    color: var(--text-mid);
+    font-size: .85rem;
+    font-style: italic;
+    line-height: 1.5;
+  }
+  .note-footer .note-icon { flex-shrink: 0; font-style: normal; font-size: 1.1rem; }
+
+  /* ── INTRO / OUTRO SLIDE ── */
+  .slide-intro .slide-body {
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    background: linear-gradient(160deg, #ecfdf5 0%, var(--white) 60%);
+    gap: 20px;
+  }
+  .intro-logo {
+    width: 72px; height: 72px;
+    background: var(--green-dark);
+    border-radius: 18px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 10px;
+    box-shadow: 0 4px 20px rgba(6,95,70,.25);
+    font-size: 2.2rem;
+  }
+  .intro-title { font-size: 2.4rem; font-weight: 800; color: var(--green-dark); letter-spacing: -.5px; }
+  .intro-sub { font-size: 1.1rem; color: var(--text-mid); max-width: 540px; }
+  .badge {
+    display: inline-block;
+    background: var(--green-light);
+    color: var(--green-dark);
+    font-size: .8rem;
+    font-weight: 600;
+    padding: 5px 14px;
+    border-radius: 20px;
+    letter-spacing: .5px;
+  }
+  .tech-stack {
+    display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 6px;
+  }
+  .tech-tag {
+    background: var(--green-light);
+    border: 1px solid #6ee7b7;
+    color: var(--green-dark);
+    font-size: .82rem;
+    font-weight: 600;
+    padding: 5px 14px;
+    border-radius: 20px;
+  }
+
+  /* ── FILE TREE ── */
+  .file-tree {
+    background: #0f2419;
+    color: #a7f3d0;
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-family: 'Consolas', monospace;
+    font-size: .9rem;
+    line-height: 2;
+  }
+  .file-tree .dir  { color: #6ee7b7; font-weight: 700; }
+  .file-tree .file { color: #94a3b8; }
+
+  /* ═══════════════════════════════════════════════
+     INTERACTIVE: CSV TABLE
+  ═══════════════════════════════════════════════ */
+  .csv-table-wrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .9rem;
+  }
+  thead th {
+    background: var(--green-dark);
+    color: var(--white);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    letter-spacing: .5px;
+  }
+  tbody tr {
+    border-bottom: 1px solid var(--grey-line);
+    cursor: pointer;
+    transition: background .15s;
+  }
+  tbody tr:hover { background: #ecfdf5; }
+  tbody td { padding: 10px 14px; }
+  tbody tr.ok td:first-child::before { content: '✅ '; }
+  tbody tr.error-row { background: #fff7ed; }
+  tbody tr.error-row td:first-child::before { content: '⚠️ '; }
+  tbody tr.selected { background: #fef3c7 !important; outline: 2px solid var(--orange); }
+
+  .error-explain {
+    display: none;
+    margin-top: 10px;
+    background: #fff7ed;
+    border: 1px solid #fde68a;
+    border-left: 4px solid var(--orange);
+    border-radius: 0 8px 8px 0;
+    padding: 12px 16px;
+    font-size: .88rem;
+    color: #78350f;
+    line-height: 1.5;
+  }
+  .error-explain.visible { display: block; }
+  .error-explain strong { color: #92400e; }
+
+  /* ═══════════════════════════════════════════════
+     INTERACTIVE: TERMINAL ANIMATION
+  ═══════════════════════════════════════════════ */
+  .terminal-wrap {
+    background: #0f2419;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .terminal-bar {
+    background: #1a3829;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .terminal-bar .tb-dot {
+    width: 12px; height: 12px; border-radius: 50%;
+  }
+  .terminal-bar .tb-red    { background: #f87171; }
+  .terminal-bar .tb-yellow { background: #fbbf24; }
+  .terminal-bar .tb-green  { background: #34d399; }
+  .terminal-bar span { color: rgba(255,255,255,.5); font-size: .78rem; margin-left: 8px; font-family: monospace; }
+  .terminal-body {
+    padding: 16px 20px;
+    font-family: 'Consolas', monospace;
+    font-size: .88rem;
+    line-height: 1.8;
+    min-height: 120px;
+    color: #a7f3d0;
+  }
+  .terminal-body .t-prompt { color: #94a3b8; }
+  .terminal-body .t-cmd    { color: #6ee7b7; font-weight: 700; }
+  .terminal-body .t-ok     { color: #34d399; }
+  .terminal-body .t-warn   { color: #fbbf24; }
+  .terminal-body .t-head   { color: #fff; font-weight: 700; }
+  #terminal-output { white-space: pre-wrap; }
+  .run-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--green-mid);
+    color: var(--white);
+    border: none;
+    border-radius: 8px;
+    padding: 9px 20px;
+    font-size: .9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .2s, transform .15s;
+    margin-bottom: 10px;
+  }
+  .run-btn:hover { background: var(--green-dark); transform: translateY(-1px); }
+  .run-btn:disabled { background: #9ca3af; cursor: default; transform: none; }
+
+  /* ═══════════════════════════════════════════════
+     INTERACTIVE: CHECKLIST
+  ═══════════════════════════════════════════════ */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .checklist li {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    border: 1px solid var(--grey-line);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all .2s;
+    font-size: .95rem;
+    color: var(--text-dark);
+    background: var(--white);
+    user-select: none;
+  }
+  .checklist li::before { display: none; }
+  .checklist li:hover { border-color: var(--green-mid); background: #f0fdf4; }
+  .checklist li.done {
+    background: #f0fdf4;
+    border-color: var(--green-mid);
+    color: var(--green-dark);
+    text-decoration: none;
+  }
+  .check-box {
+    width: 22px; height: 22px;
+    border: 2px solid #cbd5e1;
+    border-radius: 6px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .85rem;
+    transition: all .2s;
+    background: var(--white);
+  }
+  .checklist li.done .check-box {
+    background: var(--green-mid);
+    border-color: var(--green-mid);
+    color: var(--white);
+  }
+  .check-progress {
+    font-size: .8rem;
+    color: var(--text-mid);
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .progress-bar-wrap {
+    flex: 1;
+    height: 6px;
+    background: var(--grey-line);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--green-mid);
+    border-radius: 3px;
+    transition: width .3s ease;
+  }
+
+  /* ── COMMIT TIMELINE ── */
+  .commit-timeline { display: flex; flex-direction: column; gap: 0; }
+  .commit-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    position: relative;
+    padding-bottom: 20px;
+  }
+  .commit-item:last-child { padding-bottom: 0; }
+  .commit-item:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 15px; top: 32px;
+    width: 2px;
+    height: calc(100% - 12px);
+    background: var(--green-light);
+  }
+  .commit-dot {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--green-mid);
+    border: 3px solid var(--white);
+    box-shadow: 0 0 0 2px var(--green-mid);
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .8rem;
+    color: var(--white);
+    font-weight: 700;
+    z-index: 1;
+  }
+  .commit-content h4 { font-size: .9rem; font-weight: 700; color: var(--text-dark); margin-bottom: 3px; }
+  .commit-content code {
+    font-family: 'Consolas', monospace;
+    font-size: .8rem;
+    background: var(--grey-bg);
+    border: 1px solid var(--grey-line);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--green-dark);
+  }
+
+  /* ── OUTRO ── */
+  .outro-checks { display: flex; flex-direction: column; gap: 10px; width: 100%; text-align: left; }
+  .outro-check {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 1rem; font-weight: 500; color: var(--green-dark);
+    padding: 10px 16px;
+    background: var(--green-light);
+    border-radius: 8px;
+  }
+
+  /* ── PROMPT BLOCK ── */
+  .prompt-block {
+    background: #0f172a;
+    border: 2px solid var(--green-mid);
+    border-radius: 10px;
+    padding: 18px 22px;
+    font-family: 'Consolas', monospace;
+    font-size: .9rem;
+    line-height: 1.7;
+    color: #e2e8f0;
+    position: relative;
+  }
+  .prompt-block .prompt-label {
+    position: absolute;
+    top: -12px; left: 16px;
+    background: var(--green-mid);
+    color: var(--white);
+    font-size: .72rem;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 10px;
+    letter-spacing: .8px;
+    text-transform: uppercase;
+  }
+  .prompt-block .ph { color: #94a3b8; }
+  .prompt-block .pk { color: #f472b6; }
+  .prompt-block .pv { color: #6ee7b7; }
+
+  @media (max-width: 700px) {
+    .slide-header { padding: 20px 22px 16px; }
+    .slide-header h1 { font-size: 1.3rem; }
+    .slide-body { padding: 22px 22px 18px; }
+    .cols-2, .cols-3 { grid-template-columns: 1fr; }
+    #nav-dots { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="nav-dots"></div>
+
+<!-- ══════════════════════════════ SLIDE 0 – TITLE -->
+<section class="slide slide-intro" data-index="0">
+  <div class="slide-header" style="padding:14px 60px;">
+    <span style="font-size:.85rem;color:rgba(255,255,255,.7);letter-spacing:1px;text-transform:uppercase;">Codex CLI</span>
+    <span class="slide-num">Практична частина</span>
+  </div>
+  <div class="slide-body">
+    <div class="intro-logo">🛠️</div>
+    <div class="intro-title">Finance Excel Checker</div>
+    <div class="intro-sub">Практичне завдання: повний цикл розробки з Git, GitHub, Codex CLI та Python</div>
+    <div class="tech-stack">
+      <span class="tech-tag">🌿 Git</span>
+      <span class="tech-tag">☁️ GitHub</span>
+      <span class="tech-tag">🤖 Codex CLI</span>
+      <span class="tech-tag">🐍 Python</span>
+      <span class="tech-tag">📊 CSV</span>
+    </div>
+    <div><span class="badge">13 кроків · Практика</span></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ SLIDE 1 – ЗАВДАННЯ -->
+<section class="slide" data-index="1">
+  <div class="slide-header">
+    <h1>Практичне завдання: Finance Excel Checker</h1>
+    <span class="slide-num">01 / 13</span>
+  </div>
+  <div class="slide-body">
+    <div class="cols cols-2">
+      <div class="card">
+        <h3>Мета</h3>
+        <p style="font-size:.95rem;color:var(--text-mid);margin-bottom:14px;">Створити невеликий проєкт для перевірки фінансових даних за допомогою:</p>
+        <ul>
+          <li>Git</li>
+          <li>GitHub</li>
+          <li>Codex CLI</li>
+          <li>Python</li>
+          <li>CSV-файлів</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Результат — структура проєкту</h3>
+        <div class="file-tree">
+          <span class="dir">finance-excel-checker/</span><br>
+          &nbsp;&nbsp;<span style="color:#6ee7b7;">├──</span> <span class="file">payments.csv</span><br>
+          &nbsp;&nbsp;<span style="color:#6ee7b7;">├──</span> <span class="file">check_payments.py</span><br>
+          &nbsp;&nbsp;<span style="color:#6ee7b7;">├──</span> <span class="file">README.md</span><br>
+          &nbsp;&nbsp;<span style="color:#6ee7b7;">└──</span> <span class="file">.gitignore</span>
+        </div>
+      </div>
+    </div>
+    <div class="note-footer">
+      <span class="note-icon">💡</span>
+      Далі ми будемо розглядати роботу Codex CLI на реальному прикладі проєкту для фінансового відділу.
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ SLIDE 2 – GIT INIT -->
+<section class="slide" data-index="2">
+  <div class="slide-header">
+    <h1>Створення Git-проєкту</h1>
+    <span class="slide-num">02 / 13</span>
+  </div>
+  <div class="slide-body">
+    <div class="cols cols-2">
+      <div>
+        <div class="card" style="margin-bottom:18px;">
+          <h3>Команди</h3>
+          <div class="code-wrap">
+            <span class="code-label">bash</span>
+            <button class="copy-btn" data-copy="mkdir finance-excel-checker&#10;cd finance-excel-checker&#10;&#10;git init&#10;git branch -M main">Копіювати</button>
+            <pre><span class="cmd">mkdir</span> finance-excel-checker
+<span class="cmd">cd</span> finance-excel-checker
+
+<span class="cmd">git init</span>
+<span class="cmd">git branch</span> <span class="flag">-M</span> <span class="str">main</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Що відбувається</h3>
+        <ul>
+          <li>Створюється папка проєкту</li>
+          <li>Git починає відстежувати зміни</li>
+          <li>Основна гілка отримує назву <code style="background:#d1fae5;padding:1px 6px;border-radius:3px;color:#065f46;font-size:.85rem;">main</code></li>
+        </ul>
+      </div>
+    </div>
+    <div class="note-footer">
+      <span class="note-icon">💡</span>
+      На цьому етапі ми створюємо локальний репозиторій і готуємо середовище для роботи.
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ SLIDE 3 – CSV (ІНТЕРАКТИВНА ТАБЛИЦЯ) -->
+<section class="slide" data-index="3">
+  <div class="slide-header">
+    <h1>Додавання фінансових даних</h1>
+    <span class="slide-num">03 / 13</span>
+  </div>
+  <div class="slide-body">
+    <div class="highlight-box" style="margin-bottom:4px;">
+      📄 Файл: <strong>payments.csv</strong> — клікніть на рядок таблиці, щоб дізнатись про помилку
+    </div>
+    <div class="csv-table-wrap">
+      <table id="csv-table">
+        <thead>
+          <tr>
+            <th>invoice_id</th>
+            <th>date</th>
+            <th>amount</th>
+            <th>vendor</th>
+            <th>status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="ok" data-error="">
+            <td>INV-001</td><td>2024-01-15</td><td>1500.00</td><td>ACME Corp</td><td>paid</td>
+          </tr>
+          <tr class="error-row" data-error="neg" data-msg="⚠️ Від'ємна сума: amount = -200. Платіж не може бути від'ємним — це потенційна помилка введення або некоректне сторнування.">
+            <td>INV-002</td><td>2024-01-16</td><td style="color:#dc2626;font-weight:700;">-200.00</td><td>Beta Ltd</td><td>pending</td>
+          </tr>
+          <tr class="error-row" data-error="zero" data-msg="⚠️ Нульова сума: amount = 0. Платіж з нульовою сумою не несе фінансового сенсу — ймовірно, запис помилковий.">
+            <td>INV-003</td><td>2024-01-17</td><td style="color:#dc2626;font-weight:700;">0.00</td><td>Gamma Inc</td><td>paid</td>
+          </tr>
+          <tr class="ok" data-error="">
+            <td>INV-004</td><td>2024-01-18</td><td>850.00</td><td>Delta Co</td><td>paid</td>
+          </tr>
+          <tr class="error-row" data-error="dup" data-msg="⚠️ Дублікат: invoice_id = INV-001 вже зустрічався раніше. Можливо, цей платіж було проведено двічі.">
+            <td style="color:#dc2626;font-weight:700;">INV-001</td><td>2024-01-19</td><td>1500.00</td><td>ACME Corp</td><td>paid</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="error-explain" id="error-explain"></div>
+    <div class="cols cols-3" style="margin-top:4px;">
+      <div class="card" style="padding:14px 16px;">
+        <h3>Простий формат</h3>
+        <p style="font-size:.85rem;color:var(--text-mid);">CSV підтримується Excel і легко обробляється Python</p>
+      </div>
+      <div class="card" style="padding:14px 16px;">
+        <h3>Типові помилки</h3>
+        <p style="font-size:.85rem;color:var(--text-mid);">Від'ємні суми, нулі, дублікати — реальні проблеми фін. відділів</p>
+      </div>
+      <div class="card" style="padding:14px 16px;">
+        <h3>Мета скрипта</h3>
+        <p style="font-size:.85rem;color:var(--text-mid);">Автоматично знаходити такі помилки без ручного перегляду</p>
+      </div>
+    </div>
+    <div class="note-footer">
+      <span class="note-icon">💡</span>
+      Саме цей файл буде перевіряти наш Python-скрипт.
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ SLIDE 4 – ПЕРШИЙ COMMIT -->
+<section class="slide" data-index="4">
+  <div class="slide-header">
+    <h1>Перший Commit</h1>
+    <span class="slide-num">04 / 13</span>
+  </div>
+  <div class="slide-body">
+    <div class="cols cols-2">
+      <div class="card">
+        <h3>Команди</h3>
+        <div class="code-wrap">
+          <span class="code-label">bash</span>
+          <button class="copy-btn" data-copy="git add .&#10;git commit -m &quot;Add sample payments data&quot;">Копіювати</button>
+          <pre><span class="cmd">git add</span> .
+<span class="cmd">git commit</span> <span class="flag">-m</span> <span class="str">"Add sample payments data"</span></pre>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Навіщо commit</h3>
+        <ul>
+          <li>Зберігає поточний стан проєкту</li>
+          <li>Створює контрольну точку</li>
+          <li>Дозволяє повернутися до попередньої версії</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note-footer">
+      <span class="note-icon">💡</span>
+      Перед початком роботи з Codex бажано зафіксувати початковий стан проєкту.
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ SLIDE 5 – ГІЛКА -->
+<section class="slide" data-index="5">
+  <div class="slide-header">
+    <h1>Створення окремої Git-гілки</h1>
+    <span class="slide-num">05 / 13</span>
+  </div>
+  <div class="slide-body">
+    <div class="cols cols-2">
+      <div>
+        <div class="card" style="margin-bottom:18px;">
+          <h3>Команда</h3>
+          <div class="code-wrap">
+            <span class="code-label">bash</span>
+            <button class="copy-btn" data-copy="git switch -c add-payment-validation">Копіювати</button>
+            <pre><span class="cmd">git switch</span> <span class="flag">-c</span> <span class="str">add-payment-validation</span></pre>
+          </div>
+        </div>
+        <div class="card" style="background:#f0fdf4;border-color:#bbf7d0;">
+          <h3 style="color:#065f46;border-bottom-color:#bbf7d0;">Результат</h3>
+          <p style="font-size:.9rem;color:#065f46;">Git створює нову гілку та одразу перемикається на неї. Всі зміни Codex відбуватимуться тут.</p>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Переваги</h3>
+        <ul>
+          <li>Зміни ізольовані від основного коду</li>
+          <li><code style="background:#d1fae5;padding:1px 6px;border-radius:3px;color:#065f46;font-size:.85rem;">main</code> залишається стабільною</li>
+          <li>Можна експериментувати без ризику</li>
+          <li>Легко відхилити невдалі зміни</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note-footer">
+      <span class="note-icon">💡</span>
+      Усі зміни, які створюватиме Codex, виконуватимуться в окремій гілці.
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ SLIDE 6 – ЗАПУСК CODEX -->
+<section class="slide" data-index="6">
+  <div class="slide-header">
+    <h1>Запуск Codex CLI</h1>
+    <span class="slide-num">06 / 13</span>
+  </div>
+  <div class="slide-body">
+    <div class="cols cols-2">
+      <div class="card">
+        <h3>Команда</h3>
+        <div class="code-wrap">
+          <span class="code-label">bash</span>
+          <button class="copy-btn" data-copy="codex">Копіювати</button>
+          <pre><span class="cmd">codex</span></pre>
+        </div>
+        <div style="margin-top:16px;">
+          <div class="code-wrap">
+            <span class="code-label">prompt</span>
+            <button class="copy-btn" data-copy="Can you give me a brief summary of this project?">Копіювати</button>
+            <pre style="background:#0f2419;"><span class="ph">You&gt; </span><span class="pv">Can you give me a brief summary of this project?</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Що робить Codex</h3>
+        <ul>
+          <li>Аналізує структуру проєкту</li>
+          <li>Читає файли та розуміє контекст</li>
+          <li>Формує короткий опис проєкту</li>
+          <li>Пропонує наступні кроки</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note-footer">
+      <span class="note-icon">💡</span>
+      Це хороший спосіб переконатися, що Codex правильно зрозумів контекст проєкту перед генерацією коду.
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ SLIDE 7 – ПРОМПТ -->
+<section class="slide" data-index="7">
+  <div class="slide-header">
+    <h1>Постановка завдання Codex</h1>
+    <span class="slide-num">07 / 13</span>
+  </div>
+  <div class="slide-body">
+    <div class="highlight-box" style="margin-bottom:4px;">
+      Ми не пишемо код вручну — ми формулюємо бізнес-завдання природною мовою
+    </div>
+    <div class="prompt-block">
+      <span class="prompt-label">Prompt → Codex CLI</span>
+      <button class="copy-btn" style="top:16px;" data-copy="Create a simple Python script called check_payments.py that reads payments.csv and checks for:&#10;- missing invoice numbers&#10;- negative amounts&#10;- zero amounts&#10;- duplicate payments">Копіювати</button>
+      <span class="pv">Create a simple Python script called</span> <span class="pk">check_payments.py</span><br>
+      <span class="pv">that reads</span> <span class="pk">payments.csv</span> <span class="pv">and checks for:</span><br><br>
+      <span class="ph">-</span> <span class="pv">missing invoice numbers</span><br>
+      <span class="ph">-</span> <span class="pv">negative amounts</span><br>
+      <span class="ph">-</span> <span class="pv">zero amounts</span><br>
+      <span class="ph">-</span> <span class="pv">duplicate payments</span>
+    </div>
+    <div class="card" style="background:#f0fdf4;border-color:#bbf7d0;">
+      <h3 style="color:#065f46;border-bottom-color:#bbf7d0;">Результат</h3>
+      <p style="font-size:.95rem;color:#065f46;">Codex автоматично створює файл <strong>check_payments.py</strong> — повноцінний Python-скрипт для перевірки даних.</p>
+    </div>
+    <div class="note-footer">
+      <span class="note-icon">💡</span>
+      Зверніть увагу: ми описуємо бізнес-задачу, а не технічну реалізацію. Codex сам вирішує як її виконати.
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ SLIDE 8 – ПЕРЕВІРКА (АНІМОВАНИЙ ТЕРМІНАЛ) -->
+<section class="slide" data-index="8">
+  <div class="slide-header">
+    <h1>Перевірка результату</h1>
+    <span class="slide-num">08 / 13</span>
+  </div>
+  <div class="slide-body">
+    <div class="cols cols-2">
+      <div>
+        <div class="card" style="margin-bottom:16px;">
+          <h3>Команда запуску</h3>
+          <div class="code-wrap">
+            <span class="code-label">bash</span>
+            <button class="copy-btn" data-copy="python3 check_payments.py">Копіювати</button>
+            <pre><span class="cmd">python3</span> check_payments.py</pre>
+          </div>
+        </div>
+        <button class="run-btn" id="run-script-btn" onclick="runTerminal()">
+          ▶ Запустити скрипт
+        </button>
+        <div class="terminal-wrap">
+          <div class="terminal-bar">
+            <div class="tb-dot tb-red"></div>
+            <div class="tb-dot tb-yellow"></div>
+            <div class="tb-dot tb-green"></div>
+            <span>check_payments.py</span>
+          </div>
+          <div class="terminal-body">
+            <div id="terminal-output"><span style="color:#4b5563;">Натисніть ▶ Запустити скрипт, щоб побачити звіт...</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Що перевіряє скрипт</h3>
+        <ul>
+          <li>Відсутні номери інвойсів</li>
+          <li>Від'ємні суми платежів</li>
+          <li>Нульові суми</li>
+          <li>Можливі дублікати</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note-footer">
+      <span class="note-icon">💡</span>
+      Після генерації коду його необхідно протестувати та переконатися, що результати коректні.
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ SLIDE 9 – GIT STATUS -->
+<section class="slide" data-index="9">
+  <div class="slide-header">
+    <h1>Аналіз змін через Git</h1>
+    <span class="slide-num">09 / 13</span>
+  </div>
+  <div class="slide-body">
+    <div class="cols cols-2">
+      <div class="card">
+        <h3>Команди</h3>
+        <div class="code-wrap" style="margin-bottom:10px;">
+          <span class="code-label">bash</span>
+          <button class="copy-btn" data-copy="git status&#10;git diff">Копіювати</button>
+          <pre><span class="cmd">git status</span>
+<span class="cmd">git diff</span></pre>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Навіщо перевіряти</h3>
+        <ul>
+          <li>Перегляд файлів, які створив Codex</li>
+          <li>Перевірка змін перед commit</li>
+          <li>Контроль роботи AI</li>
+          <li>Переконатись, що зміни коректні</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card" style="background:#fff7ed;border-color:#fde68a;">
+      <h3 style="color:#92400e;border-bottom-color:#fde68a;">⚠️ Важливо</h3>
+      <p style="font-size:.9rem;color:#78350f;line-height:1.6;">
+        AI може помилятися. Зміни від Codex потрібно переглядати так само уважно, як і код колеги на code review. Не приймайте код «наосліп».
+      </p>
+    </div>
+    <div class="note-footer">
+      <span class="note-icon">💡</span>
+      AI може помилятися, тому зміни потрібно переглядати так само, як і код колеги.
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ SLIDE 10 – README -->
+<section class="slide" data-index="10">
+  <div class="slide-header">
+    <h1>Створення README через Codex</h1>
+    <span class="slide-num">10 / 13</span>
+  </div>
+  <div class="slide-body">
+    <div class="prompt-block" style="margin-bottom:4px;">
+      <span class="prompt-label">Prompt → Codex CLI</span>
+      <button class="copy-btn" style="top:16px;" data-copy="Create a README.md file for this project.&#10;Explain what the project does,&#10;what files it contains,&#10;and how to run the script.">Копіювати</button>
+      <span class="pv">Create a</span> <span class="pk">README.md</span> <span class="pv">file for this project.</span><br>
+      <span class="pv">Explain what the project does,</span><br>
+      <span class="pv">what files it contains,</span><br>
+      <span class="pv">and how to run the script.</span>
+    </div>
+    <div class="cols cols-2">
+      <div class="card" style="background:#f0fdf4;border-color:#bbf7d0;">
+        <h3 style="color:#065f46;border-bottom-color:#bbf7d0;">Результат</h3>
+        <p style="font-size:.9rem;color:#065f46;line-height:1.6;">Codex автоматично створює файл <strong>README.md</strong> з описом проєкту, переліком файлів та інструкцією запуску.</p>
+      </div>
+      <div class="card">
+        <h3>README включає</h3>
+        <ul>
+          <li>Опис проєкту та його мету</li>
+          <li>Перелік файлів у репозиторії</li>
+          <li>Інструкцію як запустити скрипт</li>
+          <li>Приклад виводу результатів</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note-footer">
+      <span class="note-icon">💡</span>
+      Документація — ще одна задача, яку Codex виконує дуже швидко і якісно.
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ SLIDE 11 – GITHUB PUSH (COMMIT TIMELINE) -->
+<section class="slide" data-index="11">
+  <div class="slide-header">
+    <h1>Завершення роботи та GitHub</h1>
+    <span class="slide-num">11 / 13</span>
+  </div>
+  <div class="slide-body">
+    <div class="cols cols-2">
+      <div>
+        <div class="card" style="margin-bottom:16px;">
+          <h3>Commit та Push</h3>
+          <div class="code-wrap">
+            <span class="code-label">bash</span>
+            <button class="copy-btn" data-copy="git add .&#10;git commit -m &quot;Add payment validation script&quot;&#10;git add README.md&#10;git commit -m &quot;Add project README&quot;&#10;&#10;git push origin add-payment-validation">Копіювати</button>
+            <pre><span class="cmd">git add</span> .
+<span class="cmd">git commit</span> <span class="flag">-m</span> <span class="str">"Add payment validation script"</span>
+<span class="cmd">git add</span> README.md
+<span class="cmd">git commit</span> <span class="flag">-m</span> <span class="str">"Add project README"</span>
+
+<span class="cmt"># Push гілки на GitHub</span>
+<span class="cmd">git push origin</span> <span class="str">add-payment-validation</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Підсумок Git-історії</h3>
+        <div class="commit-timeline">
+          <div class="commit-item">
+            <div class="commit-dot">1</div>
+            <div class="commit-content">
+              <h4>Початкові дані</h4>
+              <code>"Add sample payments data"</code>
+            </div>
+          </div>
+          <div class="commit-item">
+            <div class="commit-dot">2</div>
+            <div class="commit-content">
+              <h4>Python скрипт</h4>
+              <code>"Add payment validation script"</code>
+            </div>
+          </div>
+          <div class="commit-item">
+            <div class="commit-dot">3</div>
+            <div class="commit-content">
+              <h4>Документація</h4>
+              <code>"Add project README"</code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="note-footer">
+      <span class="note-icon">💡</span>
+      Після завершення роботи проєкт публікується на GitHub для зберігання та спільної роботи.
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ SLIDE 12 – ЗДАЧА (ЧЕКЛІСТ) -->
+<section class="slide" data-index="12">
+  <div class="slide-header">
+    <h1>Що потрібно здати</h1>
+    <span class="slide-num">12 / 13</span>
+  </div>
+  <div class="slide-body">
+    <div class="highlight-box" style="margin-bottom:4px;">
+      ✅ Позначте виконані пункти — ваш прогрес збережеться на цій сторінці
+    </div>
+    <ul class="checklist" id="checklist">
+      <li onclick="toggleCheck(this)" data-key="ch0"><div class="check-box">✓</div>Посилання на GitHub-репозиторій (публічний)</li>
+      <li onclick="toggleCheck(this)" data-key="ch1"><div class="check-box">✓</div>Файл <strong>payments.csv</strong> з тестовими даними</li>
+      <li onclick="toggleCheck(this)" data-key="ch2"><div class="check-box">✓</div>Файл <strong>check_payments.py</strong>, згенерований Codex CLI</li>
+      <li onclick="toggleCheck(this)" data-key="ch3"><div class="check-box">✓</div>Файл <strong>README.md</strong> з описом проєкту</li>
+      <li onclick="toggleCheck(this)" data-key="ch4"><div class="check-box">✓</div>Мінімум <strong>3 commits</strong> в Git-історії</li>
+      <li onclick="toggleCheck(this)" data-key="ch5"><div class="check-box">✓</div>Скріншот запуску <code style="background:#e2e8f0;padding:1px 6px;border-radius:3px;font-size:.85rem;">python3 check_payments.py</code> з результатами</li>
+    </ul>
+    <div class="check-progress">
+      <span id="check-count">0 / 6</span>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="check-bar" style="width:0%"></div>
+      </div>
+    </div>
+    <div class="note-footer">
+      <span class="note-icon">💡</span>
+      Це підтверджує, що студент пройшов повний цикл роботи: від створення проєкту до публікації результату на GitHub.
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ SLIDE 13 – ВИСНОВКИ -->
+<section class="slide" data-index="13">
+  <div class="slide-header">
+    <h1>Висновки</h1>
+    <span class="slide-num">13 / 13</span>
+  </div>
+  <div class="slide-body">
+    <div class="highlight-box">
+      <strong>Головний висновок:</strong> Codex CLI не просто генерує код, а стає помічником під час повного циклу розробки — від створення проєкту до документації та публікації на GitHub.
+    </div>
+    <div style="margin-top:4px;">
+      <p style="font-size:.9rem;color:var(--text-mid);margin-bottom:14px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;">Під час практики ми використали:</p>
+      <div class="cols cols-3">
+        <div class="outro-checks">
+          <div class="outro-check">🌿 Git — контроль версій</div>
+          <div class="outro-check">☁️ GitHub — публікація</div>
+        </div>
+        <div class="outro-checks">
+          <div class="outro-check">🌿 Git-гілки — безпека змін</div>
+          <div class="outro-check">🤖 Codex CLI — генерація коду</div>
+        </div>
+        <div class="outro-checks">
+          <div class="outro-check">🐍 Python — скрипт перевірки</div>
+          <div class="outro-check">📊 CSV-файли — тестові дані</div>
+        </div>
+      </div>
+    </div>
+    <div class="note-footer">
+      <span class="note-icon">💡</span>
+      Ця практика дає базовий досвід роботи з реальними інструментами розробки у поєднанні з AI-асистентом.
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ SLIDE 14 – OUTRO -->
+<section class="slide slide-intro" data-index="14">
+  <div class="slide-header" style="padding:14px 60px;">
+    <span style="font-size:.85rem;color:rgba(255,255,255,.7);letter-spacing:1px;text-transform:uppercase;">Codex CLI</span>
+    <span class="slide-num">Кінець практики</span>
+  </div>
+  <div class="slide-body">
+    <div style="max-width:600px;display:flex;flex-direction:column;gap:20px;align-items:center;">
+      <div style="font-size:3rem;">🚀</div>
+      <div style="font-size:1.6rem;font-weight:800;color:var(--green-dark);text-align:center;">Практику завершено!</div>
+      <div class="card" style="text-align:left;width:100%;">
+        <ul>
+          <li>Ініціалізували Git-репозиторій</li>
+          <li>Створили фінансові тестові дані</li>
+          <li>Згенерували Python-скрипт через Codex CLI</li>
+          <li>Зробили 3+ commits та опублікували на GitHub</li>
+        </ul>
+      </div>
+      <div class="highlight-box" style="text-align:center;width:100%;">
+        Відтепер ви знаєте, як AI-агент інтегрується в реальний робочий процес розробника.
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ── NAV DOTS ── */
+const slides = document.querySelectorAll('.slide');
+const dotsContainer = document.getElementById('nav-dots');
+
+slides.forEach((_, i) => {
+  const d = document.createElement('div');
+  d.className = 'dot' + (i === 0 ? ' active' : '');
+  d.title = `Слайд ${i + 1}`;
+  d.addEventListener('click', () => slides[i].scrollIntoView({ behavior: 'smooth' }));
+  dotsContainer.appendChild(d);
+});
+
+const dots = dotsContainer.querySelectorAll('.dot');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const idx = parseInt(entry.target.dataset.index);
+      dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+    }
+  });
+}, { threshold: 0.5 });
+slides.forEach(s => observer.observe(s));
+
+/* ── COPY BUTTONS ── */
+document.querySelectorAll('.copy-btn').forEach(btn => {
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const text = btn.dataset.copy;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = '✓ Скопійовано';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'Копіювати';
+        btn.classList.remove('copied');
+      }, 2000);
+    });
+  });
+});
+
+/* ── INTERACTIVE CSV TABLE ── */
+const csvRows = document.querySelectorAll('#csv-table tbody tr');
+const errorBox = document.getElementById('error-explain');
+
+csvRows.forEach(row => {
+  row.addEventListener('click', () => {
+    const msg = row.dataset.msg;
+    if (!msg) {
+      csvRows.forEach(r => r.classList.remove('selected'));
+      errorBox.classList.remove('visible');
+      errorBox.innerHTML = '';
+      return;
+    }
+    const wasSelected = row.classList.contains('selected');
+    csvRows.forEach(r => r.classList.remove('selected'));
+    if (wasSelected) {
+      errorBox.classList.remove('visible');
+      errorBox.innerHTML = '';
+    } else {
+      row.classList.add('selected');
+      errorBox.innerHTML = `<strong>Знайдена проблема:</strong> ${msg}`;
+      errorBox.classList.add('visible');
+    }
+  });
+});
+
+/* ── ANIMATED TERMINAL ── */
+const terminalLines = [
+  { text: '$ python3 check_payments.py', cls: 't-cmd', delay: 0 },
+  { text: '', cls: '', delay: 600 },
+  { text: '=== Validation Report ===', cls: 't-head', delay: 900 },
+  { text: '', cls: '', delay: 1100 },
+  { text: '✓ Missing invoices:  0 found', cls: 't-ok', delay: 1300 },
+  { text: '✓ Negative amounts:  1 found  →  INV-002 (-200.00)', cls: 't-warn', delay: 1700 },
+  { text: '✓ Zero amounts:      1 found  →  INV-003 (0.00)', cls: 't-warn', delay: 2100 },
+  { text: '✓ Duplicates:        1 found  →  INV-001', cls: 't-warn', delay: 2500 },
+  { text: '', cls: '', delay: 2900 },
+  { text: '3 issue(s) detected. Review required.', cls: 't-warn', delay: 3000 },
+];
+
+function runTerminal() {
+  const output = document.getElementById('terminal-output');
+  const btn = document.getElementById('run-script-btn');
+  output.innerHTML = '';
+  btn.disabled = true;
+  btn.textContent = '⏳ Виконується...';
+
+  terminalLines.forEach(({ text, cls, delay }) => {
+    setTimeout(() => {
+      const line = document.createElement('div');
+      if (cls) line.className = cls;
+      line.textContent = text;
+      output.appendChild(line);
+    }, delay);
+  });
+
+  setTimeout(() => {
+    btn.disabled = false;
+    btn.textContent = '▶ Запустити ще раз';
+  }, 3400);
+}
+
+/* ── INTERACTIVE CHECKLIST ── */
+function toggleCheck(el) {
+  el.classList.toggle('done');
+  const key = el.dataset.key;
+  if (el.classList.contains('done')) {
+    localStorage.setItem(key, '1');
+  } else {
+    localStorage.removeItem(key);
+  }
+  updateProgress();
+}
+
+function updateProgress() {
+  const items = document.querySelectorAll('#checklist li');
+  const done = document.querySelectorAll('#checklist li.done').length;
+  const total = items.length;
+  document.getElementById('check-count').textContent = `${done} / ${total}`;
+  document.getElementById('check-bar').style.width = `${(done / total) * 100}%`;
+}
+
+/* Restore checklist state from localStorage */
+document.querySelectorAll('#checklist li').forEach(li => {
+  if (localStorage.getItem(li.dataset.key) === '1') {
+    li.classList.add('done');
+  }
+});
+updateProgress();
+</script>
+</body>
+</html>
